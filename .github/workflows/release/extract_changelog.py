@@ -1,7 +1,9 @@
 """EXTRACT CHANGELOG Script
 This script extracts the changelog for the given version from the CHANGELOG.md file.
 The version is given as x.y.z (e.g. 0.1.1) as an arg (e.g. running "python extract_changelog.py 0.1.1").
-The changelog is saved as markdown on a file.
+
+The changelog is saved as markdown on a file, whose name/path can be configured
+with the CHANGELOG_OUTPUT_FILE env variable (default to "changelog_generated.md").
 
 The expected CHANGELOG.md file must have a format like the following:
 
@@ -19,6 +21,7 @@ The expected CHANGELOG.md file must have a format like the following:
 ```
 """
 
+import os
 import sys
 import re
 from typing import List
@@ -27,7 +30,7 @@ from markdown2 import markdown
 from bs4 import BeautifulSoup
 
 CHANGELOG_READ_FILE = "CHANGELOG.md"
-CHANGELOG_OUTPUT_FILE = "changelog_generated.md"
+CHANGELOG_OUTPUT_FILE = os.getenv("CHANGELOG_OUTPUT_FILE", "changelog_generated.md")
 
 
 def _is_valid_version(version: str) -> bool:

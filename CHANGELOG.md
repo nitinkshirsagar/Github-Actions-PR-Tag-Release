@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Write workflow-generated files on /tmp
+
 ## 0.0.5
 
 - Fix extract_tag_from_pr detection of "Tags" prefix
