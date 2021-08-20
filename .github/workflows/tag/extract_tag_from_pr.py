@@ -1,10 +1,14 @@
 """EXTRACT TAG FROM PR Script
 This script extracts the tag version from a Pull Request body,
 given the JSON Output returned by the Action https://github.com/marketplace/actions/get-current-pull-request.
+
 The JSON Output must be given through an environment variable named "PR_JSON_DATA".
+
 The Pull Request body must contain a line that starts with "Tag" or "Tags", followed by a version in style x.x.x,
 being x a number (case ignored, words after version ignored)
+
 The tag is written to a file. If no tag can be exported from the Pull Request body, the file is written blank.
+The file name/path can be configured with the VERSION_FILE env variable, defaults to "version.txt" in current directory.
 """
 
 import os
@@ -13,7 +17,7 @@ import json
 from typing import Optional
 
 PR_JSON_DATA_ENV = "PR_JSON_DATA"
-VERSION_FILE = "version.txt"
+VERSION_FILE = os.getenv("VERSION_FILE", "version.txt")
 
 
 def _get_pr_data() -> dict:

@@ -30,21 +30,23 @@ jobs:
       # Fetch variables
       - name: Extract version from tag (on tag push) to file
         if: "${{ github.event_name == 'push' }}"
-        run: "echo $GITHUB_REF | cut -d / -f 3 > extracted_tag.txt"
+        run: "echo $GITHUB_REF | cut -d / -f 3 > /tmp/extracted_tag.txt"
       - name: Extract version (on repository dispatch) to file
         if: "${{ github.event_name == 'repository_dispatch' }}"
-        run: "echo ${{ github.event.client_payload.tag }} > extracted_tag.txt"
+        run: "echo ${{ github.event.client_payload.tag }} > /tmp/extracted_tag.txt"
       - name: Read extracted tag from file
         id: get_version_from_file
         uses: juliangruber/read-file-action@v1
         with:
-          path: "./extracted_tag.txt"
+          path: "/tmp/extracted_tag.txt"
       - name: Set version to variable
         id: get_version
         run: echo ::set-output name=VERSION::$(echo ${{ steps.get_version_from_file.outputs.content }})
       - name: Fetch changelog for release description
         id: get_changelog
         run: "python .github/workflows/release/extract_changelog.py ${{ steps.get_version.outputs.VERSION }}"
+        env:
+          CHANGELOG_OUTPUT_FILE: "/tmp/changelog_generated.md"
 
       # Generate artifact
       - name: Create release artifact (zip)
@@ -60,7 +62,7 @@ jobs:
         with:
           tag_name: "${{ steps.get_version.outputs.VERSION }}"
           release_name: "v${{ steps.get_version.outputs.VERSION }}"
-          body_path: changelog_generated.md
+          body_path: "/tmp/changelog_generated.md"
           draft: false
           prerelease: false
       - name: Upload release asset
