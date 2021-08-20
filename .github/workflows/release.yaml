@@ -25,7 +25,7 @@ jobs:
           python-version: 3.7
           architecture: x64
       - name: Install Python requirements
-        run: "python -m pip install -r .github/workflows/release/extract_changelog_requirements.txt"
+        run: "python -m pip install -r .github/workflows/release/requirements.txt"
 
       # Fetch variables
       - name: Extract version from tag (on tag push) to file
