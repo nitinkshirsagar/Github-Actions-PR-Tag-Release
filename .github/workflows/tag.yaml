@@ -1,64 +1,44 @@
-name: Tag on merged PR
+name: "Tag on Pull Request merge"
 # Workflow 1
 # This workflow is triggered when a pull request for branch main is closed and merged.
 # Creates a new tag on the merge commit.
 
 on:
+  # Should trigger only when a Pull Request is Closed
+  # (the action will not create the Tag if the Pull Request is discarded - closed without merge)
   pull_request:
-    branches:
-      - main
     types:
       - closed
+    branches:
+      - main
 
 jobs:
-  tag:
-    name: Tag merged PR
-    if: "github.event.pull_request.merged == true"  # only run on merged PR
-    runs-on: "ubuntu-latest"
+  tag-on-pr-merge:
+    name: Tag on Pull Request merge
+    runs-on: ubuntu-latest
+    # This 'if' condition is important for ensuring the workflow only runs for merged PRs
+    #  (avoid running when a PR is discarded - closed without merging)
+    if: github.event.pull_request.merged == true
     steps:
-      # Setup
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v1
+      # Fetch the tag from the PR, and push it if detected
+      - name: Tag on PR merge
+        id: tag-on-pr-merge
+        uses: David-Lor/action-tag-on-pr-merge@main
         with:
-          python-version: 3.7
-          architecture: x64
+          push-tag: true
+      - name: Print fetched tag
+        run: echo "${{ steps.tag-on-pr-merge.outputs.tag }}"
 
-      # Extract tag
-      - name: Get Pull Request data
-        id: PR
-        uses: 8BitJonny/gh-get-current-pr@1.1.0
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"  # Automatically given
-          filterOutClosed: false
-      - name: Extract tag from Pull Request data
-        run: "python .github/workflows/tag/extract_tag_from_pr.py"
-        if: success() && steps.PR.outputs.number
-        env:
-          PR_JSON_DATA: "${{ steps.PR.outputs.pr }}"
-          VERSION_FILE: "/tmp/version.txt"
-      - name: Read tag from output file
-        id: tagRead
-        uses: juliangruber/read-file-action@v1
-        if: success() && steps.PR.outputs.number
-        with:
-          path: "/tmp/version.txt"
-
-      # Push tag
-      - name: Tag commit
-        uses: tvdias/github-tagger@v0.0.1
-        if: success() && steps.PR.outputs.number && steps.tagRead.outputs.content
-        with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"  # Automatically given
-          tag: "${{ steps.tagRead.outputs.content }}"
-
-      # Trigger Release workflow sending tag (Github Workflows cannot be triggered by other workflows actions by default)
+      # Trigger the Release workflow, since an action triggered from a workflow (the creation of the new tag) cannot trigger another workflow.
+      #  Send the detected tag on payload.
       - name: Trigger Release workflow
-        uses: peter-evans/repository-dispatch@v1
-        if: success() && steps.PR.outputs.number && steps.tagRead.outputs.content
+        uses: peter-evans/repository-dispatch@c73dcc42429d4220d60b2b8daf3cee190a131129
+        if: steps.tag-on-pr-merge.outputs.tag
         with:
-          token: "${{ secrets.REPO_ACCESS_TOKEN }}"  # Requires creating a Personal Access Token, with repo or public_repo scope
-          repository: "David-Lor/Github-Actions-PR-Tag-Release"  # Change with your repository
-          event-type: "from_tag"
-          client-payload: '{"tag": "${{ steps.tagRead.outputs.content }}"}'
+          token: ${{ secrets.PAT }}  # Requires creating a Personal Access Token, with repo or public_repo scope
+          repository: David-Lor/Github-Actions-PR-Tag-Release  # Change with your repository
+          event-type: from_tag
+          client-payload: |-
+            {
+              "tag": "${{ steps.tag-on-pr-merge.outputs.tag }}"
+            }
