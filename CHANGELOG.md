@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Use "Tag on PR merge" external action on Tag workflow
+
 ## 0.1.1
 
 - Write workflow-generated files on /tmp
