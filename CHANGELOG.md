@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Add workflow dispatch on Release workflow
+
 ## 0.1.2
 
 - Use "Tag on PR merge" external action on Tag workflow
