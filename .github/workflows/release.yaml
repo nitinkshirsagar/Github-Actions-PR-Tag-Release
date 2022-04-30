@@ -1,6 +1,6 @@
 name: Create Release
 # Workflow 2
-# This workflow is triggered when a new branch is created, or through a repository_dispatch trigger event named "from_tag".
+# This workflow is triggered when a new tag is created, or through a repository_dispatch trigger event named "from_tag".
 # The changelog for the tag is extracted from CHANGELOG.md, and a new release is created, uploading a zip with the repository files to it.
 
 on:
