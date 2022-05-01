@@ -15,6 +15,9 @@ on:
       tag:
         description: Existing Tag to create release of
         required: true
+      ref:
+        description: Custom ref to checkout
+        required: false
 
 jobs:
   build:
@@ -41,10 +44,17 @@ jobs:
         run: echo ::set-output name=VERSION::$(echo ${{ steps.get_version_from_file.outputs.content }})
 
       # Setup
+      - name: Set tag as ref
+        run: echo CHECKOUT_REF=${{ steps.get_version.outputs.VERSION }} >> $GITHUB_ENV
+      - name: Set custom ref
+        if: github.event.inputs.ref
+        run: echo CHECKOUT_REF=${{ github.event.inputs.ref }} >> $GITHUB_ENV
+      - name: Validate ref
+        run: test $CHECKOUT_REF
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ steps.get_version.outputs.VERSION }}
+          ref: ${{ env.CHECKOUT_REF }}
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
