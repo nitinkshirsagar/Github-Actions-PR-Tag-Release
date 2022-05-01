@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Modifications on Release workflow:
+  - Allow running Release workflow without publishing release
+  - Checkout the specific detected tag
+  - Allow specifying custom ref to checkout
+  - Internal change: set input version to env instead of exporting to file and reading
+
 ## 0.1.3
 
 - Add workflow dispatch on Release workflow
