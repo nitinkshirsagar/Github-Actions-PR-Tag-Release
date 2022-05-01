@@ -15,46 +15,61 @@ on:
       tag:
         description: Existing Tag to create release of
         required: true
+      ref:
+        description: Custom ref to checkout
+        required: false
+      publish:
+        description: Publish release?
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   build:
     name: Create Release
     runs-on: ubuntu-latest
+    env:
+      CHANGELOG_OUTPUT_FILE: /tmp/changelog_generated.md
+      PUBLISH_RELEASE: 'true'
     steps:
+      # Fetch version
+      - name: Extract version from tag (on tag push)
+        if: github.event_name == 'push'
+        run: echo VERSION=$(echo $GITHUB_REF | cut -d / -f 3) >> $GITHUB_ENV
+      - name: Extract version (on repository dispatch)
+        if: github.event_name == 'repository_dispatch'
+        run: echo VERSION=${{ github.event.client_payload.tag }} >> $GITHUB_ENV
+      - name: Extract version (on workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: echo VERSION=${{ github.event.inputs.tag }} >> $GITHUB_ENV
+      - name: Validate version
+        run: test $VERSION
+
       # Setup
+      - name: Set tag as ref
+        run: echo CHECKOUT_REF=$VERSION >> $GITHUB_ENV
+      - name: Set custom ref
+        if: github.event.inputs.ref
+        run: echo CHECKOUT_REF=${{ github.event.inputs.ref }} >> $GITHUB_ENV
+      - name: Validate ref
+        run: test $CHECKOUT_REF
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
           python-version: 3.7
           architecture: x64
       - name: Install Python requirements
-        run: "python -m pip install -r .github/workflows/release/requirements.txt"
+        run: python -m pip install -r .github/workflows/release/requirements.txt
 
-      # Fetch variables
-      - name: Extract version from tag (on tag push) to file
-        if: github.event_name == 'push'
-        run: echo $GITHUB_REF | cut -d / -f 3 > /tmp/extracted_tag.txt
-      - name: Extract version (on repository dispatch) to file
-        if: github.event_name == 'repository_dispatch'
-        run: echo ${{ github.event.client_payload.tag }} > /tmp/extracted_tag.txt
-      - name: Extract version (on workflow dispatch) to file
-        if: github.event_name == 'workflow_dispatch'
-        run: echo ${{ github.event.inputs.tag }} > /tmp/extracted_tag.txt
-      - name: Read extracted tag from file
-        id: get_version_from_file
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: "/tmp/extracted_tag.txt"
-      - name: Set version to variable
-        id: get_version
-        run: echo ::set-output name=VERSION::$(echo ${{ steps.get_version_from_file.outputs.content }})
+      # Fetch changelog
       - name: Fetch changelog for release description
-        id: get_changelog
-        run: "python .github/workflows/release/extract_changelog.py ${{ steps.get_version.outputs.VERSION }}"
-        env:
-          CHANGELOG_OUTPUT_FILE: "/tmp/changelog_generated.md"
+        run: python .github/workflows/release/extract_changelog.py $VERSION
+      - name: Debug changelog
+        run: cat ${{ env.CHANGELOG_OUTPUT_FILE }}
 
       # Generate artifact
       - name: Create release artifact (zip)
@@ -62,24 +77,28 @@ jobs:
         run: zip -r --exclude=.git* release-artifact.zip .
 
       # Release
+      - name: Conditional if publish release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'true'
+        run: echo PUBLISH_RELEASE=false >> $GITHUB_ENV
       - name: Create release
         id: create_release
+        if: env.PUBLISH_RELEASE == 'true'
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"  # Automatically given
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Automatically given
         with:
-          tag_name: "${{ steps.get_version.outputs.VERSION }}"
-          release_name: "v${{ steps.get_version.outputs.VERSION }}"
-          body_path: "/tmp/changelog_generated.md"
+          tag_name: ${{ env.VERSION }}
+          release_name: v${{ env.VERSION }}
+          body_path: ${{ env.CHANGELOG_OUTPUT_FILE }}
           draft: false
           prerelease: false
       - name: Upload release asset
-        id: upload_release_asset
+        if: env.PUBLISH_RELEASE == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: "./release-artifact.zip"
-          asset_name: "Sample-Release-${{ steps.get_version.outputs.VERSION }}.zip"
-          asset_content_type: "application/zip"
+          asset_path: ./release-artifact.zip
+          asset_name: Sample-Release-${{ env.VERSION }}.zip
+          asset_content_type: application/zip
