@@ -18,11 +18,19 @@ on:
       ref:
         description: Custom ref to checkout
         required: false
+      publish:
+        description: Publish release?
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   build:
     name: Create Release
     runs-on: ubuntu-latest
+    env:
+      CHANGELOG_OUTPUT_FILE: /tmp/changelog_generated.md
+      PUBLISH_RELEASE: 'true'
     steps:
       # Fetch version
       - name: Extract version from tag (on tag push) to file
@@ -65,10 +73,9 @@ jobs:
 
       # Fetch changelog
       - name: Fetch changelog for release description
-        id: get_changelog
         run: python .github/workflows/release/extract_changelog.py ${{ steps.get_version.outputs.VERSION }}
-        env:
-          CHANGELOG_OUTPUT_FILE: /tmp/changelog_generated.md
+      - name: Debug changelog
+        run: cat ${{ env.CHANGELOG_OUTPUT_FILE }}
 
       # Generate artifact
       - name: Create release artifact (zip)
@@ -76,19 +83,23 @@ jobs:
         run: zip -r --exclude=.git* release-artifact.zip .
 
       # Release
+      - name: Conditional if publish release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'true'
+        run: echo PUBLISH_RELEASE=false >> $GITHUB_ENV
       - name: Create release
         id: create_release
+        if: env.PUBLISH_RELEASE == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Automatically given
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           release_name: v${{ steps.get_version.outputs.VERSION }}
-          body_path: /tmp/changelog_generated.md
+          body_path: ${{ env.CHANGELOG_OUTPUT_FILE }}
           draft: false
           prerelease: false
       - name: Upload release asset
-        id: upload_release_asset
+        if: env.PUBLISH_RELEASE == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
