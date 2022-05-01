@@ -33,27 +33,21 @@ jobs:
       PUBLISH_RELEASE: 'true'
     steps:
       # Fetch version
-      - name: Extract version from tag (on tag push) to file
+      - name: Extract version from tag (on tag push)
         if: github.event_name == 'push'
-        run: echo $GITHUB_REF | cut -d / -f 3 > /tmp/extracted_tag.txt
-      - name: Extract version (on repository dispatch) to file
+        run: echo VERSION=$(echo $GITHUB_REF | cut -d / -f 3) >> $GITHUB_ENV
+      - name: Extract version (on repository dispatch)
         if: github.event_name == 'repository_dispatch'
-        run: echo ${{ github.event.client_payload.tag }} > /tmp/extracted_tag.txt
-      - name: Extract version (on workflow dispatch) to file
+        run: echo VERSION=${{ github.event.client_payload.tag }} >> $GITHUB_ENV
+      - name: Extract version (on workflow dispatch)
         if: github.event_name == 'workflow_dispatch'
-        run: echo ${{ github.event.inputs.tag }} > /tmp/extracted_tag.txt
-      - name: Read extracted tag from file
-        id: get_version_from_file
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: "/tmp/extracted_tag.txt"
-      - name: Set version to variable
-        id: get_version
-        run: echo ::set-output name=VERSION::$(echo ${{ steps.get_version_from_file.outputs.content }})
+        run: echo VERSION=${{ github.event.inputs.tag }} >> $GITHUB_ENV
+      - name: Validate version
+        run: test $VERSION
 
       # Setup
       - name: Set tag as ref
-        run: echo CHECKOUT_REF=${{ steps.get_version.outputs.VERSION }} >> $GITHUB_ENV
+        run: echo CHECKOUT_REF=$VERSION >> $GITHUB_ENV
       - name: Set custom ref
         if: github.event.inputs.ref
         run: echo CHECKOUT_REF=${{ github.event.inputs.ref }} >> $GITHUB_ENV
@@ -73,7 +67,7 @@ jobs:
 
       # Fetch changelog
       - name: Fetch changelog for release description
-        run: python .github/workflows/release/extract_changelog.py ${{ steps.get_version.outputs.VERSION }}
+        run: python .github/workflows/release/extract_changelog.py $VERSION
       - name: Debug changelog
         run: cat ${{ env.CHANGELOG_OUTPUT_FILE }}
 
@@ -93,8 +87,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Automatically given
         with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: v${{ steps.get_version.outputs.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          release_name: v${{ env.VERSION }}
           body_path: ${{ env.CHANGELOG_OUTPUT_FILE }}
           draft: false
           prerelease: false
@@ -106,5 +100,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./release-artifact.zip
-          asset_name: Sample-Release-${{ steps.get_version.outputs.VERSION }}.zip
+          asset_name: Sample-Release-${{ env.VERSION }}.zip
           asset_content_type: application/zip
