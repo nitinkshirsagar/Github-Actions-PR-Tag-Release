@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- test workflow:
+  - Allow running Release workflow without publishing release
+
 ## 0.1.4
 
 - Modifications on Release workflow:
